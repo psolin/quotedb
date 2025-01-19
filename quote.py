@@ -1,5 +1,3 @@
-# Quote DB
-
 import sqlite3
 import random
 import os
@@ -12,50 +10,42 @@ def db_connection():
 
 
 def random_quote():
-    db = db_connection()
-    cur = db.cursor()
-    cur.execute("SELECT quote_id FROM quote;")
-    quote_list = cur.fetchall()
+    with db_connection() as db:
+        cur = db.cursor()
+        cur.execute("SELECT quote_id FROM quote;")
+        quote_list = cur.fetchall()
+        quote_id = random.choice(quote_list)[0]
 
-    quote_id = random.choice(quote_list)[0]
-
-    try:
-        cur.execute("SELECT * from quote WHERE quote_id = ?;", (quote_id,))
-        quote_comment = cur.fetchone()
-        quote_comment_string = ("%s (%s)" % (quote_comment[1], quote_comment[0]))
-        return quote_comment_string
-    except sqlite3.ProgrammingError:
-        return "quote DB error (%s)" % quote_id
+        try:
+            cur.execute("SELECT * FROM quote WHERE quote_id = ?;", (quote_id,))
+            quote_comment = cur.fetchone()
+            return f"{quote_comment[1]} ({quote_comment[0]})"
+        except sqlite3.ProgrammingError:
+            return f"quote DB error ({quote_id})"
 
 
 def lookup_by_quote_text(quote_text):
-    db = db_connection()
-    cur = db.cursor()
-    cur.execute("SELECT quote_id FROM quote WHERE quote_comment LIKE ?", ('%' + quote_text + '%',))
-    quotes_requested = cur.fetchall()
+    with db_connection() as db:
+        cur = db.cursor()
+        cur.execute("SELECT quote_id FROM quote WHERE quote_comment LIKE ?", (f"%{quote_text}%",))
+        quotes_requested = cur.fetchall()
 
-    quote_number_list = []
+        quote_number_list = [str(item[0]).lower() for item in quotes_requested]
+        quote_number_list_string = ", ".join(quote_number_list)
 
-    for item in quotes_requested:
-        quote_number_list.append(str(item[0]).lower())
-
-    quote_number_list_string = "".join(str(quote_number_list))[1:-1]
-
-    if quote_number_list_string != "":
-        quote_number_list_string = "Relevant quotes: %s." % quote_number_list_string
-    else:
-        quote_number_list_string = "No relevant quotes."
-
-    return quote_number_list_string
+        if quote_number_list_string:
+            return f"Relevant quotes: {quote_number_list_string}."
+        else:
+            return "No relevant quotes."
 
 
 def lookup_by_quote_number(quote_number):
-    db = db_connection()
-    cur = db.cursor()
-    try:
-        cur.execute("SELECT * from quote WHERE quote_id = ?", (quote_number,))
-        quote_requested = cur.fetchone()
-        quote_string = ("%s (%s)" % (quote_requested[1], quote_number))
-        return quote_string
-    except sqlite3.ProgrammingError:
-        return "quote not found."
+    with db_connection() as db:
+        cur = db.cursor()
+
+        try:
+            cur.execute("SELECT * FROM quote WHERE quote_id = ?", (quote_number,))
+            quote_requested = cur.fetchone()
+            return f"{quote_requested[1]} ({quote_number})"
+        except sqlite3.ProgrammingError:
+            return "quote not found."
